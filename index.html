@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#1e40af">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="EDI 분석">
+    <title>EDI 발주 분석 대시보드</title>
+    
+    <!-- PWA 설정 -->
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="icon-192.png">
+    
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://unpkg.com/xlsx/dist/xlsx.full.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <style>
+        * { -webkit-tap-highlight-color: transparent; }
+        body { font-family: 'Malgun Gothic', -apple-system, BlinkMacSystemFont, sans-serif; margin: 0; overscroll-behavior: none; }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+        
+        /* 설치 배너 */
+        .install-banner { 
+            position: fixed; bottom: 0; left: 0; right: 0; 
+            background: linear-gradient(135deg, #1e40af, #3b82f6); 
+            color: white; padding: 16px; z-index: 1000;
+            display: flex; justify-content: space-between; align-items: center;
+            box-shadow: 0 -4px 20px rgba(0,0,0,0.15);
+        }
+        .install-banner.hidden { display: none; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+    
+    <!-- 설치 배너 -->
+    <div id="installBanner" class="install-banner hidden">
+        <div>
+            <strong>📱 앱으로 설치하기</strong>
+            <p style="margin:4px 0 0; font-size:12px; opacity:0.9;">홈 화면에 추가하여 더 빠르게 사용하세요</p>
+        </div>
+        <div style="display:flex; gap:8px;">
+            <button onclick="dismissInstall()" style="padding:8px 16px; background:transparent; border:1px solid white; color:white; border-radius:8px; cursor:pointer;">나중에</button>
+            <button onclick="installApp()" style="padding:8px 16px; background:white; color:#1e40af; border:none; border-radius:8px; cursor:pointer; font-weight:bold;">설치</button>
+        </div>
+    </div>
+
+    <script>
+        // PWA 설치 프롬프트
+        let deferredPrompt;
+        
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            document.getElementById('installBanner').classList.remove('hidden');
+        });
+        
+        function installApp() {
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                deferredPrompt.userChoice.then((result) => {
+                    if (result.outcome === 'accepted') {
+                        console.log('앱 설치됨');
+                    }
+                    deferredPrompt = null;
+                    document.getElementById('installBanner').classList.add('hidden');
+                });
+            }
+        }
+        
+        function dismissInstall() {
+            document.getElementById('installBanner').classList.add('hidden');
+        }
+        
+        // 이미 설치된 경우 배너 숨김
+        window.addEventListener('appinstalled', () => {
+            document.getElementById('installBanner').classList.add('hidden');
+        });
+        
+        // Service Worker 등록
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('sw.js')
+                .then(reg => console.log('Service Worker 등록됨'))
+                .catch(err => console.log('Service Worker 등록 실패:', err));
+        }
+    </script>
+
+    <script type="text/babel">
+        const { useState, useMemo } = React;
+
+        function EDIDashboard() {
+            const [data, setData] = useState([]);
+            const [filters, setFilters] = useState({ 지역: '', 고객사: '', 품번: '', 분석월: '' });
+            const [isLoading, setIsLoading] = useState(false);
+            const [uploadStatus, setUploadStatus] = useState(null);
+            const [activeTab, setActiveTab] = useState('analysis');
+
+            const sampleData = [
+                { 지역: 'US', 고객사: 'GM Bowling Green', 품번: '1101-500028', 품명: 'CHMSL / 1095', 분석월: '2025-01', 계획발주수량: 1800, 실제발주수량: 1850, 변동율: 2.78, 출고율: 102.78 },
+                { 지역: 'US', 고객사: 'GM Bowling Green', 품번: '1101-500028', 품명: 'CHMSL / 1095', 분석월: '2025-06', 계획발주수량: 2200, 실제발주수량: 2180, 변동율: -0.91, 출고율: 99.09 },
+                { 지역: 'US', 고객사: 'GM Bowling Green', 품번: '1101-500028', 품명: 'CHMSL / 1095', 분석월: '2026-01', 계획발주수량: 2016, 실제발주수량: 2100, 변동율: 4.17, 출고율: 104.17 },
+                { 지역: 'US', 고객사: 'GM Bowling Green', 품번: '1101-500028', 품명: 'CHMSL / 1095', 분석월: '2026-02', 계획발주수량: 2100, 실제발주수량: 2150, 변동율: 2.38, 출고율: 102.38 },
+                { 지역: 'US', 고객사: 'GM Flint', 품번: '1311-000003', 품명: 'LAMP ASSY-FENDER', 분석월: '2025-01', 계획발주수량: 1200, 실제발주수량: 1400, 변동율: 16.67, 출고율: 116.67 },
+                { 지역: 'US', 고객사: 'GM Flint', 품번: '1311-000003', 품명: 'LAMP ASSY-FENDER', 분석월: '2025-06', 계획발주수량: 1500, 실제발주수량: 2000, 변동율: 33.33, 출고율: 133.33 },
+                { 지역: 'US', 고객사: 'GM Flint', 품번: '1311-000003', 품명: 'LAMP ASSY-FENDER', 분석월: '2026-01', 계획발주수량: 1728, 실제발주수량: 3200, 변동율: 85.19, 출고율: 185.19 },
+                { 지역: 'US', 고객사: 'GM Flint', 품번: '1311-000003', 품명: 'LAMP ASSY-FENDER', 분석월: '2026-02', 계획발주수량: 2000, 실제발주수량: 3456, 변동율: 72.8, 출고율: 172.8 },
+                { 지역: 'MX', 고객사: 'GM Ramos', 품번: '1111-500310', 품명: 'Taillamp RH', 분석월: '2025-01', 계획발주수량: 4000, 실제발주수량: 5500, 변동율: 37.5, 출고율: 137.5 },
+                { 지역: 'MX', 고객사: 'GM Ramos', 품번: '1111-500310', 품명: 'Taillamp RH', 분석월: '2026-01', 계획발주수량: 5184, 실제발주수량: 9500, 변동율: 83.26, 출고율: 183.26 },
+                { 지역: 'MX', 고객사: 'GM Ramos', 품번: '1111-500310', 품명: 'Taillamp RH', 분석월: '2026-02', 계획발주수량: 6000, 실제발주수량: 8640, 변동율: 44, 출고율: 144 },
+                { 지역: 'CA', 고객사: 'Plasman Canada', 품번: '1101-500035', 품명: 'LAMP ASSY-CHMSL', 분석월: '2025-01', 계획발주수량: 32000, 실제발주수량: 31000, 변동율: -3.13, 출고율: 96.88 },
+                { 지역: 'CA', 고객사: 'Plasman Canada', 품번: '1101-500035', 품명: 'LAMP ASSY-CHMSL', 분석월: '2026-01', 계획발주수량: 28800, 실제발주수량: 24000, 변동율: -16.67, 출고율: 83.33 },
+                { 지역: 'CA', 고객사: 'Plasman Canada', 품번: '1101-500035', 품명: 'LAMP ASSY-CHMSL', 분석월: '2026-02', 계획발주수량: 25800, 실제발주수량: 22000, 변동율: -14.73, 출고율: 85.27 },
+                { 지역: 'KR', 고객사: '현대모비스', 품번: '1411-000001', 품명: 'HEAD LAMP LH', 분석월: '2025-01', 계획발주수량: 4000, 실제발주수량: 4100, 변동율: 2.5, 출고율: 102.5 },
+                { 지역: 'KR', 고객사: '현대모비스', 품번: '1411-000001', 품명: 'HEAD LAMP LH', 분석월: '2026-01', 계획발주수량: 4500, 실제발주수량: 4725, 변동율: 5, 출고율: 105 },
+                { 지역: 'KR', 고객사: '현대모비스', 품번: '1411-000001', 품명: 'HEAD LAMP LH', 분석월: '2026-02', 계획발주수량: 4800, 실제발주수량: 5040, 변동율: 5, 출고율: 105 },
+                { 지역: 'KR', 고객사: 'SL Corporation', 품번: '1511-000001', 품명: 'TAIL LAMP LH', 분석월: '2025-01', 계획발주수량: 3500, 실제발주수량: 1200, 변동율: -65.71, 출고율: 34.29 },
+                { 지역: 'KR', 고객사: 'SL Corporation', 품번: '1511-000001', 품명: 'TAIL LAMP LH', 분석월: '2026-01', 계획발주수량: 3200, 실제발주수량: 2900, 변동율: -9.38, 출고율: 90.63 },
+                { 지역: 'KR', 고객사: 'SL Corporation', 품번: '1511-000001', 품명: 'TAIL LAMP LH', 분석월: '2026-02', 계획발주수량: 3200, 실제발주수량: 3100, 변동율: -3.13, 출고율: 96.88 },
+            ];
+
+            const handleFileUpload = async (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                setIsLoading(true);
+                try {
+                    const buffer = await file.arrayBuffer();
+                    const workbook = XLSX.read(buffer, { type: 'array' });
+                    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+                    const rawData = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+                    const parsedData = [];
+                    for (let i = 2; i < rawData.length; i++) {
+                        const row = rawData[i];
+                        if (!row[0] || !row[5]) continue;
+                        const jan_plan = [row[9], row[10], row[11], row[12]].reduce((s, v) => s + (Number(v) || 0), 0);
+                        const jan_actual = [row[13], row[14], row[15], row[16]].reduce((s, v) => s + (Number(v) || 0), 0);
+                        parsedData.push({ 지역: row[0], 고객사: row[2], 품번: row[5], 품명: row[6], 분석월: '2026-01', 계획발주수량: jan_plan, 실제발주수량: jan_actual, 변동율: jan_plan ? Math.round(((jan_actual - jan_plan) / jan_plan) * 10000) / 100 : null, 출고율: jan_plan ? Math.round((jan_actual / jan_plan) * 10000) / 100 : null });
+                        const feb_plan = [row[30], row[31], row[32], row[33]].reduce((s, v) => s + (Number(v) || 0), 0);
+                        const feb_actual = [row[34], row[35], row[36], row[37]].reduce((s, v) => s + (Number(v) || 0), 0);
+                        parsedData.push({ 지역: row[0], 고객사: row[2], 품번: row[5], 품명: row[6], 분석월: '2026-02', 계획발주수량: feb_plan, 실제발주수량: feb_actual, 변동율: feb_plan ? Math.round(((feb_actual - feb_plan) / feb_plan) * 10000) / 100 : null, 출고율: feb_plan ? Math.round((feb_actual / feb_plan) * 10000) / 100 : null });
+                    }
+                    setData(parsedData);
+                    setUploadStatus({ type: 'success', message: `${parsedData.length}건` });
+                    setFilters({ 지역: '', 고객사: '', 품번: '', 분석월: '' });
+                } catch (err) {
+                    setUploadStatus({ type: 'error', message: '오류' });
+                }
+                setIsLoading(false);
+            };
+
+            const loadSample = () => {
+                setData(sampleData);
+                setUploadStatus({ type: 'success', message: `${sampleData.length}건 로드` });
+                setFilters({ 지역: '', 고객사: '', 품번: '', 분석월: '' });
+            };
+
+            const 지역Options = useMemo(() => [...new Set(data.map(d => d.지역))].filter(Boolean).sort(), [data]);
+            const 고객사Options = useMemo(() => {
+                let f = data;
+                if (filters.지역) f = f.filter(d => d.지역 === filters.지역);
+                return [...new Set(f.map(d => d.고객사))].filter(Boolean).sort();
+            }, [data, filters.지역]);
+            const 품번Options = useMemo(() => {
+                let f = data;
+                if (filters.지역) f = f.filter(d => d.지역 === filters.지역);
+                if (filters.고객사) f = f.filter(d => d.고객사 === filters.고객사);
+                return [...new Set(f.map(d => d.품번))].filter(Boolean).sort();
+            }, [data, filters.지역, filters.고객사]);
+
+            const handleFilterChange = (key, value) => {
+                const newFilters = { ...filters, [key]: value };
+                if (key === '지역') { newFilters.고객사 = ''; newFilters.품번 = ''; }
+                else if (key === '고객사') { newFilters.품번 = ''; }
+                setFilters(newFilters);
+            };
+
+            const filteredData = useMemo(() => {
+                let result = data;
+                if (filters.지역) result = result.filter(d => d.지역 === filters.지역);
+                if (filters.고객사) result = result.filter(d => d.고객사 === filters.고객사);
+                if (filters.품번) result = result.filter(d => d.품번 === filters.품번);
+                if (filters.분석월) result = result.filter(d => d.분석월 === filters.분석월);
+                return result;
+            }, [data, filters]);
+
+            const kpis = useMemo(() => {
+                if (filteredData.length === 0) return { plan: 0, actual: 0, avgRate: 0, issueCount: 0 };
+                const plan = filteredData.reduce((s, d) => s + d.계획발주수량, 0);
+                const actual = filteredData.reduce((s, d) => s + d.실제발주수량, 0);
+                const validRate = filteredData.filter(d => d.출고율 !== null);
+                const avgRate = validRate.length > 0 ? validRate.reduce((s, d) => s + d.출고율, 0) / validRate.length : 0;
+                const issueCount = filteredData.filter(d => d.출고율 !== null && d.출고율 < 80).length;
+                return { plan, actual, avgRate: Math.round(avgRate * 100) / 100, issueCount };
+            }, [filteredData]);
+
+            const recommendations = useMemo(() => {
+                const groups = {};
+                filteredData.forEach(row => {
+                    const key = `${row.지역}|${row.고객사}|${row.품번}`;
+                    if (!groups[key]) groups[key] = { ...row, records: [] };
+                    groups[key].records.push(row);
+                });
+                return Object.values(groups).map(g => {
+                    const valid = g.records.filter(r => r.출고율 !== null);
+                    if (valid.length === 0) return null;
+                    const avgRate = valid.reduce((s, r) => s + r.출고율, 0) / valid.length;
+                    const last = valid[valid.length - 1];
+                    let 권장 = last.실제발주수량;
+                    if (avgRate >= 120) 권장 *= 1.1;
+                    else if (avgRate < 80) 권장 *= 0.95;
+                    const 신뢰도 = valid.length === 1 ? 30 : valid.length <= 3 ? 50 : 70;
+                    return { ...g, 평균출고율: Math.round(avgRate), 권장수량: Math.round(권장), 신뢰도, 위험등급: avgRate < 80 ? '높음' : avgRate >= 120 ? '주의' : '낮음' };
+                }).filter(Boolean);
+            }, [filteredData]);
+
+            const downloadExcel = () => {
+                const ws = XLSX.utils.json_to_sheet(filteredData);
+                const wb = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(wb, ws, '분석');
+                XLSX.writeFile(wb, `EDI_${new Date().toISOString().slice(0, 10)}.xlsx`);
+            };
+
+            const getRiskColor = (r) => ({ '높음': 'bg-red-100 text-red-700', '주의': 'bg-orange-100 text-orange-700', '낮음': 'bg-green-100 text-green-700' }[r] || 'bg-gray-100');
+
+            return (
+                <div className="min-h-screen bg-slate-100">
+                    {/* 헤더 */}
+                    <div className="bg-gradient-to-r from-blue-600 to-blue-800 text-white p-4 sticky top-0 z-50 shadow-lg">
+                        <h1 className="text-lg font-bold">📊 EDI 발주 분석</h1>
+                        <p className="text-blue-200 text-xs">{filteredData.length} / {data.length}건</p>
+                    </div>
+
+                    <div className="p-3 space-y-3 pb-20">
+                        {/* 업로드 */}
+                        <div className="bg-white rounded-xl p-3 shadow-sm">
+                            <div className="flex gap-2 flex-wrap">
+                                <label className="flex-1 min-w-32 px-4 py-3 bg-blue-600 text-white rounded-xl text-center cursor-pointer text-sm font-medium">
+                                    📂 Excel 업로드
+                                    <input type="file" accept=".xlsx,.xls" onChange={handleFileUpload} className="hidden" />
+                                </label>
+                                <button onClick={loadSample} className="flex-1 min-w-32 px-4 py-3 bg-amber-500 text-white rounded-xl text-sm font-medium">📊 샘플 데이터</button>
+                            </div>
+                            {uploadStatus && <p className={`mt-2 text-xs text-center ${uploadStatus.type === 'success' ? 'text-green-600' : 'text-red-600'}`}>{uploadStatus.type === 'success' ? '✅' : '❌'} {uploadStatus.message}</p>}
+                        </div>
+
+                        {/* 필터 */}
+                        <div className="bg-white rounded-xl p-3 shadow-sm">
+                            <div className="grid grid-cols-2 gap-2">
+                                <select value={filters.지역} onChange={e => handleFilterChange('지역', e.target.value)} className="px-3 py-2 border rounded-lg text-sm">
+                                    <option value="">지역 전체</option>
+                                    {지역Options.map(o => <option key={o} value={o}>{o}</option>)}
+                                </select>
+                                <select value={filters.고객사} onChange={e => handleFilterChange('고객사', e.target.value)} className="px-3 py-2 border rounded-lg text-sm">
+                                    <option value="">고객사 전체</option>
+                                    {고객사Options.map(o => <option key={o} value={o}>{o}</option>)}
+                                </select>
+                            </div>
+                        </div>
+
+                        {/* KPI */}
+                        <div className="grid grid-cols-2 gap-2">
+                            <div className="bg-white rounded-xl p-3 shadow-sm text-center">
+                                <p className="text-xs text-slate-500">계획</p>
+                                <p className="text-lg font-bold text-blue-600">{kpis.plan.toLocaleString()}</p>
+                            </div>
+                            <div className="bg-white rounded-xl p-3 shadow-sm text-center">
+                                <p className="text-xs text-slate-500">실제</p>
+                                <p className="text-lg font-bold text-green-600">{kpis.actual.toLocaleString()}</p>
+                            </div>
+                            <div className="bg-white rounded-xl p-3 shadow-sm text-center">
+                                <p className="text-xs text-slate-500">출고율</p>
+                                <p className={`text-lg font-bold ${kpis.avgRate >= 100 ? 'text-emerald-600' : 'text-amber-600'}`}>{kpis.avgRate}%</p>
+                            </div>
+                            <div className="bg-white rounded-xl p-3 shadow-sm text-center">
+                                <p className="text-xs text-slate-500">이슈</p>
+                                <p className={`text-lg font-bold ${kpis.issueCount > 0 ? 'text-red-600' : 'text-green-600'}`}>{kpis.issueCount}건</p>
+                            </div>
+                        </div>
+
+                        {/* 탭 */}
+                        <div className="flex gap-2">
+                            <button onClick={() => setActiveTab('analysis')} className={`flex-1 py-2 rounded-lg text-sm font-medium ${activeTab === 'analysis' ? 'bg-blue-600 text-white' : 'bg-white'}`}>📊 분석</button>
+                            <button onClick={() => setActiveTab('recommend')} className={`flex-1 py-2 rounded-lg text-sm font-medium ${activeTab === 'recommend' ? 'bg-amber-500 text-white' : 'bg-white'}`}>💡 제안</button>
+                        </div>
+
+                        {/* 데이터 카드 */}
+                        {activeTab === 'analysis' ? (
+                            <div className="space-y-2">
+                                {filteredData.length === 0 ? (
+                                    <div className="bg-white rounded-xl p-8 text-center text-slate-400">데이터를 로드하세요</div>
+                                ) : filteredData.slice(0, 50).map((r, i) => (
+                                    <div key={i} className="bg-white rounded-xl p-3 shadow-sm">
+                                        <div className="flex justify-between items-start mb-2">
+                                            <div>
+                                                <span className={`px-2 py-0.5 rounded text-xs ${r.지역 === 'US' ? 'bg-blue-100 text-blue-700' : r.지역 === 'MX' ? 'bg-green-100 text-green-700' : r.지역 === 'CA' ? 'bg-red-100 text-red-700' : 'bg-purple-100 text-purple-700'}`}>{r.지역}</span>
+                                                <span className="ml-2 text-sm font-medium">{r.고객사}</span>
+                                            </div>
+                                            <span className={`px-2 py-0.5 rounded text-xs font-medium ${r.출고율 >= 100 ? 'bg-emerald-100 text-emerald-700' : r.출고율 >= 80 ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700'}`}>{r.출고율}%</span>
+                                        </div>
+                                        <p className="text-xs text-slate-500 mb-1">{r.품번} | {r.분석월}</p>
+                                        <div className="flex justify-between text-sm">
+                                            <span>계획: <strong>{r.계획발주수량.toLocaleString()}</strong></span>
+                                            <span>실제: <strong>{r.실제발주수량.toLocaleString()}</strong></span>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <div className="space-y-2">
+                                {recommendations.length === 0 ? (
+                                    <div className="bg-white rounded-xl p-8 text-center text-slate-400">데이터를 로드하세요</div>
+                                ) : recommendations.slice(0, 30).map((r, i) => (
+                                    <div key={i} className="bg-white rounded-xl p-3 shadow-sm">
+                                        <div className="flex justify-between items-start mb-2">
+                                            <div>
+                                                <span className={`px-2 py-0.5 rounded text-xs ${r.지역 === 'US' ? 'bg-blue-100 text-blue-700' : r.지역 === 'MX' ? 'bg-green-100 text-green-700' : r.지역 === 'CA' ? 'bg-red-100 text-red-700' : 'bg-purple-100 text-purple-700'}`}>{r.지역}</span>
+                                                <span className="ml-2 text-sm font-medium">{r.고객사}</span>
+                                            </div>
+                                            <span className={`px-2 py-0.5 rounded text-xs font-medium ${getRiskColor(r.위험등급)}`}>{r.위험등급}</span>
+                                        </div>
+                                        <p className="text-xs text-slate-500 mb-2">{r.품번}</p>
+                                        <div className="flex justify-between items-center">
+                                            <div className="text-sm">
+                                                <span className="text-slate-500">출고율:</span> <strong className={r.평균출고율 >= 100 ? 'text-emerald-600' : 'text-amber-600'}>{r.평균출고율}%</strong>
+                                            </div>
+                                            <div className="text-right">
+                                                <p className="text-xs text-slate-500">권장수량</p>
+                                                <p className="text-lg font-bold text-blue-600">{r.권장수량.toLocaleString()}</p>
+                                            </div>
+                                        </div>
+                                        <div className="mt-2 bg-slate-100 rounded-full h-1.5">
+                                            <div className="bg-blue-500 h-1.5 rounded-full" style={{width: `${r.신뢰도}%`}}></div>
+                                        </div>
+                                        <p className="text-xs text-slate-400 mt-1 text-right">신뢰도 {r.신뢰도}%</p>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+
+                    {/* 하단 버튼 */}
+                    <div className="fixed bottom-0 left-0 right-0 bg-white border-t p-3 flex gap-2">
+                        <button onClick={downloadExcel} disabled={filteredData.length === 0} className="flex-1 py-3 bg-green-600 text-white rounded-xl font-medium disabled:bg-slate-300">📥 Excel 다운로드</button>
+                    </div>
+                </div>
+            );
+        }
+
+        ReactDOM.createRoot(document.getElementById('root')).render(<EDIDashboard />);
+    </script>
+</body>
+</html>
