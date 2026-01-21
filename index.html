@@ -55,15 +55,23 @@
 
         function EDIDashboard() {
             const [data, setData] = useState([]);
-            const [filters, setFilters] = useState({ 지역: '', 고객사: '', 품번: '', 분석월: '' });
+            const [filters, setFilters] = useState({ 
+                시작월: '', 
+                종료월: '', 
+                지역: '', 
+                고객사: '', 
+                차종: '', 
+                품번: '', 
+                품명: '' 
+            });
             const [isLoading, setIsLoading] = useState(false);
             const [uploadStatus, setUploadStatus] = useState(null);
             const [activeTab, setActiveTab] = useState('analysis');
             const [recentFiles, setRecentFiles] = useState([]);
             const [savedPath, setSavedPath] = useState('');
             const [showSettings, setShowSettings] = useState(false);
+            const [showFilters, setShowFilters] = useState(true);
 
-            // 로컬 스토리지에서 설정 불러오기
             useEffect(() => {
                 const saved = localStorage.getItem('edi-recent-files');
                 if (saved) setRecentFiles(JSON.parse(saved));
@@ -71,7 +79,6 @@
                 if (path) setSavedPath(path);
             }, []);
 
-            // 최근 파일 저장
             const saveRecentFile = (fileName, recordCount) => {
                 const newFile = { name: fileName, date: new Date().toLocaleString('ko-KR'), count: recordCount };
                 const updated = [newFile, ...recentFiles.filter(f => f.name !== fileName)].slice(0, 5);
@@ -79,33 +86,45 @@
                 localStorage.setItem('edi-recent-files', JSON.stringify(updated));
             };
 
-            // 지정 경로 저장
             const saveDefaultPath = (path) => {
                 setSavedPath(path);
                 localStorage.setItem('edi-saved-path', path);
             };
 
+            // 샘플 데이터 (차종 추가)
             const sampleData = [
-                { 지역: 'US', 고객사: 'GM Bowling Green', 품번: '1101-500028', 품명: 'CHMSL / 1095', 분석월: '2025-01', 계획발주수량: 1800, 실제발주수량: 1850, 변동율: 2.78, 출고율: 102.78 },
-                { 지역: 'US', 고객사: 'GM Bowling Green', 품번: '1101-500028', 품명: 'CHMSL / 1095', 분석월: '2025-06', 계획발주수량: 2200, 실제발주수량: 2180, 변동율: -0.91, 출고율: 99.09 },
-                { 지역: 'US', 고객사: 'GM Bowling Green', 품번: '1101-500028', 품명: 'CHMSL / 1095', 분석월: '2026-01', 계획발주수량: 2016, 실제발주수량: 2100, 변동율: 4.17, 출고율: 104.17 },
-                { 지역: 'US', 고객사: 'GM Bowling Green', 품번: '1101-500028', 품명: 'CHMSL / 1095', 분석월: '2026-02', 계획발주수량: 2100, 실제발주수량: 2150, 변동율: 2.38, 출고율: 102.38 },
-                { 지역: 'US', 고객사: 'GM Flint', 품번: '1311-000003', 품명: 'LAMP ASSY-FENDER', 분석월: '2025-01', 계획발주수량: 1200, 실제발주수량: 1400, 변동율: 16.67, 출고율: 116.67 },
-                { 지역: 'US', 고객사: 'GM Flint', 품번: '1311-000003', 품명: 'LAMP ASSY-FENDER', 분석월: '2025-06', 계획발주수량: 1500, 실제발주수량: 2000, 변동율: 33.33, 출고율: 133.33 },
-                { 지역: 'US', 고객사: 'GM Flint', 품번: '1311-000003', 품명: 'LAMP ASSY-FENDER', 분석월: '2026-01', 계획발주수량: 1728, 실제발주수량: 3200, 변동율: 85.19, 출고율: 185.19 },
-                { 지역: 'US', 고객사: 'GM Flint', 품번: '1311-000003', 품명: 'LAMP ASSY-FENDER', 분석월: '2026-02', 계획발주수량: 2000, 실제발주수량: 3456, 변동율: 72.8, 출고율: 172.8 },
-                { 지역: 'MX', 고객사: 'GM Ramos', 품번: '1111-500310', 품명: 'Taillamp RH', 분석월: '2025-01', 계획발주수량: 4000, 실제발주수량: 5500, 변동율: 37.5, 출고율: 137.5 },
-                { 지역: 'MX', 고객사: 'GM Ramos', 품번: '1111-500310', 품명: 'Taillamp RH', 분석월: '2026-01', 계획발주수량: 5184, 실제발주수량: 9500, 변동율: 83.26, 출고율: 183.26 },
-                { 지역: 'MX', 고객사: 'GM Ramos', 품번: '1111-500310', 품명: 'Taillamp RH', 분석월: '2026-02', 계획발주수량: 6000, 실제발주수량: 8640, 변동율: 44, 출고율: 144 },
-                { 지역: 'CA', 고객사: 'Plasman Canada', 품번: '1101-500035', 품명: 'LAMP ASSY-CHMSL', 분석월: '2025-01', 계획발주수량: 32000, 실제발주수량: 31000, 변동율: -3.13, 출고율: 96.88 },
-                { 지역: 'CA', 고객사: 'Plasman Canada', 품번: '1101-500035', 품명: 'LAMP ASSY-CHMSL', 분석월: '2026-01', 계획발주수량: 28800, 실제발주수량: 24000, 변동율: -16.67, 출고율: 83.33 },
-                { 지역: 'CA', 고객사: 'Plasman Canada', 품번: '1101-500035', 품명: 'LAMP ASSY-CHMSL', 분석월: '2026-02', 계획발주수량: 25800, 실제발주수량: 22000, 변동율: -14.73, 출고율: 85.27 },
-                { 지역: 'KR', 고객사: '현대모비스', 품번: '1411-000001', 품명: 'HEAD LAMP LH', 분석월: '2025-01', 계획발주수량: 4000, 실제발주수량: 4100, 변동율: 2.5, 출고율: 102.5 },
-                { 지역: 'KR', 고객사: '현대모비스', 품번: '1411-000001', 품명: 'HEAD LAMP LH', 분석월: '2026-01', 계획발주수량: 4500, 실제발주수량: 4725, 변동율: 5, 출고율: 105 },
-                { 지역: 'KR', 고객사: '현대모비스', 품번: '1411-000001', 품명: 'HEAD LAMP LH', 분석월: '2026-02', 계획발주수량: 4800, 실제발주수량: 5040, 변동율: 5, 출고율: 105 },
-                { 지역: 'KR', 고객사: 'SL Corporation', 품번: '1511-000001', 품명: 'TAIL LAMP LH', 분석월: '2025-01', 계획발주수량: 3500, 실제발주수량: 1200, 변동율: -65.71, 출고율: 34.29 },
-                { 지역: 'KR', 고객사: 'SL Corporation', 품번: '1511-000001', 품명: 'TAIL LAMP LH', 분석월: '2026-01', 계획발주수량: 3200, 실제발주수량: 2900, 변동율: -9.38, 출고율: 90.63 },
-                { 지역: 'KR', 고객사: 'SL Corporation', 품번: '1511-000001', 품명: 'TAIL LAMP LH', 분석월: '2026-02', 계획발주수량: 3200, 실제발주수량: 3100, 변동율: -3.13, 출고율: 96.88 },
+                { 지역: 'US', 고객사: 'GM Bowling Green', 차종: '1095', 품번: '1101-500028', 품명: 'CHMSL / 1095', 분석월: '2025-01', 계획발주수량: 1800, 실제발주수량: 1850, 변동율: 2.78, 출고율: 102.78 },
+                { 지역: 'US', 고객사: 'GM Bowling Green', 차종: '1095', 품번: '1101-500028', 품명: 'CHMSL / 1095', 분석월: '2025-06', 계획발주수량: 2200, 실제발주수량: 2180, 변동율: -0.91, 출고율: 99.09 },
+                { 지역: 'US', 고객사: 'GM Bowling Green', 차종: '1095', 품번: '1101-500028', 품명: 'CHMSL / 1095', 분석월: '2025-12', 계획발주수량: 1950, 실제발주수량: 2000, 변동율: 2.56, 출고율: 102.56 },
+                { 지역: 'US', 고객사: 'GM Bowling Green', 차종: '1095', 품번: '1101-500028', 품명: 'CHMSL / 1095', 분석월: '2026-01', 계획발주수량: 2016, 실제발주수량: 2100, 변동율: 4.17, 출고율: 104.17 },
+                { 지역: 'US', 고객사: 'GM Bowling Green', 차종: '1095', 품번: '1101-500028', 품명: 'CHMSL / 1095', 분석월: '2026-02', 계획발주수량: 2100, 실제발주수량: 2150, 변동율: 2.38, 출고율: 102.38 },
+                { 지역: 'US', 고객사: 'GM Flint', 차종: 'XT6', 품번: '1311-000003', 품명: 'LAMP ASSY-FENDER CL,FRT', 분석월: '2025-01', 계획발주수량: 1200, 실제발주수량: 1400, 변동율: 16.67, 출고율: 116.67 },
+                { 지역: 'US', 고객사: 'GM Flint', 차종: 'XT6', 품번: '1311-000003', 품명: 'LAMP ASSY-FENDER CL,FRT', 분석월: '2025-06', 계획발주수량: 1500, 실제발주수량: 2000, 변동율: 33.33, 출고율: 133.33 },
+                { 지역: 'US', 고객사: 'GM Flint', 차종: 'XT6', 품번: '1311-000003', 품명: 'LAMP ASSY-FENDER CL,FRT', 분석월: '2025-12', 계획발주수량: 1700, 실제발주수량: 2800, 변동율: 64.71, 출고율: 164.71 },
+                { 지역: 'US', 고객사: 'GM Flint', 차종: 'XT6', 품번: '1311-000003', 품명: 'LAMP ASSY-FENDER CL,FRT', 분석월: '2026-01', 계획발주수량: 1728, 실제발주수량: 3200, 변동율: 85.19, 출고율: 185.19 },
+                { 지역: 'US', 고객사: 'GM Flint', 차종: 'XT6', 품번: '1311-000003', 품명: 'LAMP ASSY-FENDER CL,FRT', 분석월: '2026-02', 계획발주수량: 2000, 실제발주수량: 3456, 변동율: 72.8, 출고율: 172.8 },
+                { 지역: 'MX', 고객사: 'GM Ramos', 차종: 'LD', 품번: '1111-500310', 품명: 'LD Box Delete Taillamp, RH', 분석월: '2025-01', 계획발주수량: 4000, 실제발주수량: 5500, 변동율: 37.5, 출고율: 137.5 },
+                { 지역: 'MX', 고객사: 'GM Ramos', 차종: 'LD', 품번: '1111-500310', 품명: 'LD Box Delete Taillamp, RH', 분석월: '2025-06', 계획발주수량: 5000, 실제발주수량: 7200, 변동율: 44, 출고율: 144 },
+                { 지역: 'MX', 고객사: 'GM Ramos', 차종: 'LD', 품번: '1111-500310', 품명: 'LD Box Delete Taillamp, RH', 분석월: '2025-12', 계획발주수량: 5200, 실제발주수량: 8000, 변동율: 53.85, 출고율: 153.85 },
+                { 지역: 'MX', 고객사: 'GM Ramos', 차종: 'LD', 품번: '1111-500310', 품명: 'LD Box Delete Taillamp, RH', 분석월: '2026-01', 계획발주수량: 5184, 실제발주수량: 9500, 변동율: 83.26, 출고율: 183.26 },
+                { 지역: 'MX', 고객사: 'GM Ramos', 차종: 'LD', 품번: '1111-500310', 품명: 'LD Box Delete Taillamp, RH', 분석월: '2026-02', 계획발주수량: 6000, 실제발주수량: 8640, 변동율: 44, 출고율: 144 },
+                { 지역: 'CA', 고객사: 'Plasman Canada', 차종: 'BT1', 품번: '1101-500035', 품명: 'LAMP ASSY - CHMSL', 분석월: '2025-01', 계획발주수량: 32000, 실제발주수량: 31000, 변동율: -3.13, 출고율: 96.88 },
+                { 지역: 'CA', 고객사: 'Plasman Canada', 차종: 'BT1', 품번: '1101-500035', 품명: 'LAMP ASSY - CHMSL', 분석월: '2025-06', 계획발주수량: 30000, 실제발주수량: 28000, 변동율: -6.67, 출고율: 93.33 },
+                { 지역: 'CA', 고객사: 'Plasman Canada', 차종: 'BT1', 품번: '1101-500035', 품명: 'LAMP ASSY - CHMSL', 분석월: '2025-12', 계획발주수량: 28000, 실제발주수량: 25000, 변동율: -10.71, 출고율: 89.29 },
+                { 지역: 'CA', 고객사: 'Plasman Canada', 차종: 'BT1', 품번: '1101-500035', 품명: 'LAMP ASSY - CHMSL', 분석월: '2026-01', 계획발주수량: 28800, 실제발주수량: 24000, 변동율: -16.67, 출고율: 83.33 },
+                { 지역: 'CA', 고객사: 'Plasman Canada', 차종: 'BT1', 품번: '1101-500035', 품명: 'LAMP ASSY - CHMSL', 분석월: '2026-02', 계획발주수량: 25800, 실제발주수량: 22000, 변동율: -14.73, 출고율: 85.27 },
+                { 지역: 'KR', 고객사: '현대모비스', 차종: 'NX4', 품번: '1411-000001', 품명: 'HEAD LAMP ASSY LH', 분석월: '2025-01', 계획발주수량: 4000, 실제발주수량: 4100, 변동율: 2.5, 출고율: 102.5 },
+                { 지역: 'KR', 고객사: '현대모비스', 차종: 'NX4', 품번: '1411-000001', 품명: 'HEAD LAMP ASSY LH', 분석월: '2025-06', 계획발주수량: 4200, 실제발주수량: 4400, 변동율: 4.76, 출고율: 104.76 },
+                { 지역: 'KR', 고객사: '현대모비스', 차종: 'NX4', 품번: '1411-000001', 품명: 'HEAD LAMP ASSY LH', 분석월: '2025-12', 계획발주수량: 4400, 실제발주수량: 4600, 변동율: 4.55, 출고율: 104.55 },
+                { 지역: 'KR', 고객사: '현대모비스', 차종: 'NX4', 품번: '1411-000001', 품명: 'HEAD LAMP ASSY LH', 분석월: '2026-01', 계획발주수량: 4500, 실제발주수량: 4725, 변동율: 5, 출고율: 105 },
+                { 지역: 'KR', 고객사: '현대모비스', 차종: 'NX4', 품번: '1411-000001', 품명: 'HEAD LAMP ASSY LH', 분석월: '2026-02', 계획발주수량: 4800, 실제발주수량: 5040, 변동율: 5, 출고율: 105 },
+                { 지역: 'KR', 고객사: 'SL Corporation', 차종: 'MU', 품번: '1511-000001', 품명: 'TAIL LAMP ASSY LH', 분석월: '2025-01', 계획발주수량: 3500, 실제발주수량: 1200, 변동율: -65.71, 출고율: 34.29 },
+                { 지역: 'KR', 고객사: 'SL Corporation', 차종: 'MU', 품번: '1511-000001', 품명: 'TAIL LAMP ASSY LH', 분석월: '2025-06', 계획발주수량: 3400, 실제발주수량: 1800, 변동율: -47.06, 출고율: 52.94 },
+                { 지역: 'KR', 고객사: 'SL Corporation', 차종: 'MU', 품번: '1511-000001', 품명: 'TAIL LAMP ASSY LH', 분석월: '2025-12', 계획발주수량: 3200, 실제발주수량: 2600, 변동율: -18.75, 출고율: 81.25 },
+                { 지역: 'KR', 고객사: 'SL Corporation', 차종: 'MU', 품번: '1511-000001', 품명: 'TAIL LAMP ASSY LH', 분석월: '2026-01', 계획발주수량: 3200, 실제발주수량: 2900, 변동율: -9.38, 출고율: 90.63 },
+                { 지역: 'KR', 고객사: 'SL Corporation', 차종: 'MU', 품번: '1511-000001', 품명: 'TAIL LAMP ASSY LH', 분석월: '2026-02', 계획발주수량: 3200, 실제발주수량: 3100, 변동율: -3.13, 출고율: 96.88 },
+                { 지역: 'CA', 고객사: 'Metelix', 차종: 'BT1FG', 품번: '1351-000004', 품명: 'BT1FG LAMP RR ID 26MY', 분석월: '2026-01', 계획발주수량: 144, 실제발주수량: 144, 변동율: 0, 출고율: 100 },
+                { 지역: 'CA', 고객사: 'Metelix', 차종: 'BT1FG', 품번: '1351-000004', 품명: 'BT1FG LAMP RR ID 26MY', 분석월: '2026-02', 계획발주수량: 150, 실제발주수량: 155, 변동율: 3.33, 출고율: 103.33 },
             ];
 
             const handleFileUpload = async (e) => {
@@ -121,19 +140,43 @@
                     for (let i = 2; i < rawData.length; i++) {
                         const row = rawData[i];
                         if (!row[0] || !row[5]) continue;
+                        // 1월 데이터
                         const jan_plan = [row[9], row[10], row[11], row[12]].reduce((s, v) => s + (Number(v) || 0), 0);
                         const jan_actual = [row[13], row[14], row[15], row[16]].reduce((s, v) => s + (Number(v) || 0), 0);
-                        parsedData.push({ 지역: row[0], 고객사: row[2], 품번: row[5], 품명: row[6], 분석월: '2026-01', 계획발주수량: jan_plan, 실제발주수량: jan_actual, 변동율: jan_plan ? Math.round(((jan_actual - jan_plan) / jan_plan) * 10000) / 100 : null, 출고율: jan_plan ? Math.round((jan_actual / jan_plan) * 10000) / 100 : null });
+                        parsedData.push({ 
+                            지역: row[0], 
+                            고객사: row[2], 
+                            차종: row[3] || '', 
+                            품번: row[5], 
+                            품명: row[6], 
+                            분석월: '2026-01', 
+                            계획발주수량: jan_plan, 
+                            실제발주수량: jan_actual, 
+                            변동율: jan_plan ? Math.round(((jan_actual - jan_plan) / jan_plan) * 10000) / 100 : null, 
+                            출고율: jan_plan ? Math.round((jan_actual / jan_plan) * 10000) / 100 : null 
+                        });
+                        // 2월 데이터
                         const feb_plan = [row[30], row[31], row[32], row[33]].reduce((s, v) => s + (Number(v) || 0), 0);
                         const feb_actual = [row[34], row[35], row[36], row[37]].reduce((s, v) => s + (Number(v) || 0), 0);
-                        parsedData.push({ 지역: row[0], 고객사: row[2], 품번: row[5], 품명: row[6], 분석월: '2026-02', 계획발주수량: feb_plan, 실제발주수량: feb_actual, 변동율: feb_plan ? Math.round(((feb_actual - feb_plan) / feb_plan) * 10000) / 100 : null, 출고율: feb_plan ? Math.round((feb_actual / feb_plan) * 10000) / 100 : null });
+                        parsedData.push({ 
+                            지역: row[0], 
+                            고객사: row[2], 
+                            차종: row[3] || '', 
+                            품번: row[5], 
+                            품명: row[6], 
+                            분석월: '2026-02', 
+                            계획발주수량: feb_plan, 
+                            실제발주수량: feb_actual, 
+                            변동율: feb_plan ? Math.round(((feb_actual - feb_plan) / feb_plan) * 10000) / 100 : null, 
+                            출고율: feb_plan ? Math.round((feb_actual / feb_plan) * 10000) / 100 : null 
+                        });
                     }
                     setData(parsedData);
                     setUploadStatus({ type: 'success', message: `${parsedData.length}건` });
-                    setFilters({ 지역: '', 고객사: '', 품번: '', 분석월: '' });
+                    resetFilters();
                     saveRecentFile(file.name, parsedData.length);
                 } catch (err) {
-                    setUploadStatus({ type: 'error', message: '오류' });
+                    setUploadStatus({ type: 'error', message: '오류: ' + err.message });
                 }
                 setIsLoading(false);
             };
@@ -141,52 +184,112 @@
             const loadSample = () => {
                 setData(sampleData);
                 setUploadStatus({ type: 'success', message: `${sampleData.length}건 로드` });
-                setFilters({ 지역: '', 고객사: '', 품번: '', 분석월: '' });
+                resetFilters();
             };
 
-            const 지역Options = useMemo(() => [...new Set(data.map(d => d.지역))].filter(Boolean).sort(), [data]);
+            const resetFilters = () => {
+                setFilters({ 시작월: '', 종료월: '', 지역: '', 고객사: '', 차종: '', 품번: '', 품명: '' });
+            };
+
+            // 기간 옵션 (전체 데이터 기준)
+            const 월Options = useMemo(() => [...new Set(data.map(d => d.분석월))].filter(Boolean).sort(), [data]);
+
+            // ========== 계단식 필터 옵션 ==========
+            // 1단계: 기간 필터 적용된 데이터
+            const periodFilteredData = useMemo(() => {
+                let result = data;
+                if (filters.시작월) result = result.filter(d => d.분석월 >= filters.시작월);
+                if (filters.종료월) result = result.filter(d => d.분석월 <= filters.종료월);
+                return result;
+            }, [data, filters.시작월, filters.종료월]);
+
+            // 2단계: 지역 옵션 (기간 필터만 적용)
+            const 지역Options = useMemo(() => 
+                [...new Set(periodFilteredData.map(d => d.지역))].filter(Boolean).sort()
+            , [periodFilteredData]);
+
+            // 3단계: 고객사 옵션 (기간 + 지역)
             const 고객사Options = useMemo(() => {
-                let f = data;
+                let f = periodFilteredData;
                 if (filters.지역) f = f.filter(d => d.지역 === filters.지역);
                 return [...new Set(f.map(d => d.고객사))].filter(Boolean).sort();
-            }, [data, filters.지역]);
-            const 품번Options = useMemo(() => {
-                let f = data;
+            }, [periodFilteredData, filters.지역]);
+
+            // 4단계: 차종 옵션 (기간 + 지역 + 고객사)
+            const 차종Options = useMemo(() => {
+                let f = periodFilteredData;
                 if (filters.지역) f = f.filter(d => d.지역 === filters.지역);
                 if (filters.고객사) f = f.filter(d => d.고객사 === filters.고객사);
-                return [...new Set(f.map(d => d.품번))].filter(Boolean).sort();
-            }, [data, filters.지역, filters.고객사]);
+                return [...new Set(f.map(d => d.차종))].filter(Boolean).sort();
+            }, [periodFilteredData, filters.지역, filters.고객사]);
 
+            // 5단계: 품번 옵션 (기간 + 지역 + 고객사 + 차종)
+            const 품번Options = useMemo(() => {
+                let f = periodFilteredData;
+                if (filters.지역) f = f.filter(d => d.지역 === filters.지역);
+                if (filters.고객사) f = f.filter(d => d.고객사 === filters.고객사);
+                if (filters.차종) f = f.filter(d => d.차종 === filters.차종);
+                return [...new Set(f.map(d => d.품번))].filter(Boolean).sort();
+            }, [periodFilteredData, filters.지역, filters.고객사, filters.차종]);
+
+            // 6단계: 품명 옵션 (기간 + 지역 + 고객사 + 차종 + 품번)
+            const 품명Options = useMemo(() => {
+                let f = periodFilteredData;
+                if (filters.지역) f = f.filter(d => d.지역 === filters.지역);
+                if (filters.고객사) f = f.filter(d => d.고객사 === filters.고객사);
+                if (filters.차종) f = f.filter(d => d.차종 === filters.차종);
+                if (filters.품번) f = f.filter(d => d.품번 === filters.품번);
+                return [...new Set(f.map(d => d.품명))].filter(Boolean).sort();
+            }, [periodFilteredData, filters.지역, filters.고객사, filters.차종, filters.품번]);
+
+            // 계단식 필터 변경 핸들러
             const handleFilterChange = (key, value) => {
                 const newFilters = { ...filters, [key]: value };
-                if (key === '지역') { newFilters.고객사 = ''; newFilters.품번 = ''; }
-                else if (key === '고객사') { newFilters.품번 = ''; }
+                
+                // 계단식 초기화
+                if (key === '시작월' || key === '종료월') {
+                    newFilters.지역 = ''; newFilters.고객사 = ''; newFilters.차종 = ''; newFilters.품번 = ''; newFilters.품명 = '';
+                } else if (key === '지역') {
+                    newFilters.고객사 = ''; newFilters.차종 = ''; newFilters.품번 = ''; newFilters.품명 = '';
+                } else if (key === '고객사') {
+                    newFilters.차종 = ''; newFilters.품번 = ''; newFilters.품명 = '';
+                } else if (key === '차종') {
+                    newFilters.품번 = ''; newFilters.품명 = '';
+                } else if (key === '품번') {
+                    newFilters.품명 = '';
+                }
                 setFilters(newFilters);
             };
 
+            // 최종 필터링된 데이터
             const filteredData = useMemo(() => {
-                let result = data;
+                let result = periodFilteredData;
                 if (filters.지역) result = result.filter(d => d.지역 === filters.지역);
                 if (filters.고객사) result = result.filter(d => d.고객사 === filters.고객사);
+                if (filters.차종) result = result.filter(d => d.차종 === filters.차종);
                 if (filters.품번) result = result.filter(d => d.품번 === filters.품번);
-                if (filters.분석월) result = result.filter(d => d.분석월 === filters.분석월);
+                if (filters.품명) result = result.filter(d => d.품명 === filters.품명);
                 return result;
-            }, [data, filters]);
+            }, [periodFilteredData, filters]);
 
+            // KPI 계산
             const kpis = useMemo(() => {
-                if (filteredData.length === 0) return { plan: 0, actual: 0, avgRate: 0, issueCount: 0 };
+                if (filteredData.length === 0) return { plan: 0, actual: 0, avgVar: 0, avgRate: 0, issueCount: 0 };
                 const plan = filteredData.reduce((s, d) => s + d.계획발주수량, 0);
                 const actual = filteredData.reduce((s, d) => s + d.실제발주수량, 0);
+                const validVar = filteredData.filter(d => d.변동율 !== null);
                 const validRate = filteredData.filter(d => d.출고율 !== null);
+                const avgVar = validVar.length > 0 ? validVar.reduce((s, d) => s + d.변동율, 0) / validVar.length : 0;
                 const avgRate = validRate.length > 0 ? validRate.reduce((s, d) => s + d.출고율, 0) / validRate.length : 0;
                 const issueCount = filteredData.filter(d => d.출고율 !== null && d.출고율 < 80).length;
-                return { plan, actual, avgRate: Math.round(avgRate * 100) / 100, issueCount };
+                return { plan, actual, avgVar: Math.round(avgVar * 100) / 100, avgRate: Math.round(avgRate * 100) / 100, issueCount };
             }, [filteredData]);
 
+            // AI 수량 제안
             const recommendations = useMemo(() => {
                 const groups = {};
                 filteredData.forEach(row => {
-                    const key = `${row.지역}|${row.고객사}|${row.품번}`;
+                    const key = `${row.지역}|${row.고객사}|${row.차종}|${row.품번}`;
                     if (!groups[key]) groups[key] = { ...row, records: [] };
                     groups[key].records.push(row);
                 });
@@ -198,24 +301,29 @@
                     let 권장 = last.실제발주수량;
                     if (avgRate >= 120) 권장 *= 1.1;
                     else if (avgRate < 80) 권장 *= 0.95;
-                    const 신뢰도 = valid.length === 1 ? 30 : valid.length <= 3 ? 50 : 70;
+                    const 신뢰도 = valid.length === 1 ? 30 : valid.length <= 3 ? 50 : valid.length <= 6 ? 70 : 85;
                     return { ...g, 평균출고율: Math.round(avgRate), 권장수량: Math.round(권장), 신뢰도, 위험등급: avgRate < 80 ? '높음' : avgRate >= 120 ? '주의' : '낮음' };
                 }).filter(Boolean);
             }, [filteredData]);
 
             const downloadExcel = () => {
-                const ws = XLSX.utils.json_to_sheet(filteredData);
+                const ws = XLSX.utils.json_to_sheet(filteredData.map(d => ({
+                    '지역': d.지역, '고객사': d.고객사, '차종': d.차종, '품번': d.품번, '품명': d.품명, 
+                    '분석월': d.분석월, '계획발주수량': d.계획발주수량, '실제발주수량': d.실제발주수량, 
+                    '변동율(%)': d.변동율, '출고율(%)': d.출고율
+                })));
+                const ws2 = XLSX.utils.json_to_sheet(recommendations.map(r => ({
+                    '지역': r.지역, '고객사': r.고객사, '차종': r.차종, '품번': r.품번, '품명': r.품명,
+                    '평균출고율(%)': r.평균출고율, '권장수량': r.권장수량, '신뢰도(%)': r.신뢰도, '위험등급': r.위험등급
+                })));
                 const wb = XLSX.utils.book_new();
-                XLSX.utils.book_append_sheet(wb, ws, '분석');
-                XLSX.writeFile(wb, `EDI_${new Date().toISOString().slice(0, 10)}.xlsx`);
+                XLSX.utils.book_append_sheet(wb, ws, '발주분석');
+                XLSX.utils.book_append_sheet(wb, ws2, '수량제안');
+                XLSX.writeFile(wb, `EDI_발주분석_${new Date().toISOString().slice(0, 10)}.xlsx`);
             };
 
             const getRiskColor = (r) => ({ '높음': 'bg-red-100 text-red-700', '주의': 'bg-orange-100 text-orange-700', '낮음': 'bg-green-100 text-green-700' }[r] || 'bg-gray-100');
-
-            const clearRecentFiles = () => {
-                setRecentFiles([]);
-                localStorage.removeItem('edi-recent-files');
-            };
+            const activeFilterCount = Object.values(filters).filter(Boolean).length;
 
             return (
                 <div className="min-h-screen bg-slate-100">
@@ -224,11 +332,9 @@
                         <div className="flex justify-between items-center">
                             <div>
                                 <h1 className="text-lg font-bold">📊 EDI 발주 분석</h1>
-                                <p className="text-blue-200 text-xs">{filteredData.length} / {data.length}건</p>
+                                <p className="text-blue-200 text-xs">{filteredData.length} / {data.length}건 {activeFilterCount > 0 && `(필터 ${activeFilterCount}개)`}</p>
                             </div>
-                            <button onClick={() => setShowSettings(!showSettings)} className="p-2 bg-blue-700 rounded-lg hover:bg-blue-600">
-                                ⚙️
-                            </button>
+                            <button onClick={() => setShowSettings(!showSettings)} className="p-2 bg-blue-700 rounded-lg hover:bg-blue-600">⚙️</button>
                         </div>
                     </div>
 
@@ -236,156 +342,194 @@
                     {showSettings && (
                         <div className="bg-white border-b shadow-sm p-4">
                             <h3 className="font-bold text-sm mb-3">⚙️ 설정</h3>
-                            
-                            {/* 지정 경로 */}
                             <div className="mb-4">
                                 <label className="block text-xs text-slate-600 mb-1">📁 기본 파일 경로 (메모용)</label>
-                                <input 
-                                    type="text" 
-                                    value={savedPath} 
-                                    onChange={(e) => saveDefaultPath(e.target.value)}
-                                    placeholder="예: C:\Users\사용자\회사명\판매팀\EDI파일"
-                                    className="w-full px-3 py-2 border rounded-lg text-sm"
-                                />
-                                <p className="text-xs text-slate-400 mt-1">Teams 동기화 폴더 경로를 저장해두세요</p>
+                                <input type="text" value={savedPath} onChange={(e) => saveDefaultPath(e.target.value)} placeholder="예: C:\Users\사용자\회사명\판매팀\EDI파일" className="w-full px-3 py-2 border rounded-lg text-sm" />
                             </div>
-
-                            {/* 최근 파일 */}
-                            <div>
-                                <div className="flex justify-between items-center mb-2">
-                                    <label className="text-xs text-slate-600">📄 최근 파일</label>
-                                    {recentFiles.length > 0 && (
-                                        <button onClick={clearRecentFiles} className="text-xs text-red-500 hover:underline">전체 삭제</button>
-                                    )}
-                                </div>
+                            <div className="mb-4">
+                                <label className="text-xs text-slate-600">📄 최근 파일</label>
                                 {recentFiles.length === 0 ? (
-                                    <p className="text-xs text-slate-400">최근 업로드한 파일이 없습니다</p>
+                                    <p className="text-xs text-slate-400 mt-1">최근 업로드한 파일이 없습니다</p>
                                 ) : (
-                                    <div className="space-y-1">
+                                    <div className="space-y-1 mt-1">
                                         {recentFiles.map((file, i) => (
-                                            <div key={i} className="flex justify-between items-center bg-slate-50 p-2 rounded text-xs">
+                                            <div key={i} className="flex justify-between bg-slate-50 p-2 rounded text-xs">
                                                 <span className="truncate flex-1">{file.name}</span>
-                                                <span className="text-slate-400 ml-2">{file.count}건 | {file.date.split(' ')[0]}</span>
+                                                <span className="text-slate-400 ml-2">{file.count}건</span>
                                             </div>
                                         ))}
                                     </div>
                                 )}
                             </div>
-
-                            <button onClick={() => setShowSettings(false)} className="mt-4 w-full py-2 bg-slate-200 rounded-lg text-sm">닫기</button>
+                            <button onClick={() => setShowSettings(false)} className="w-full py-2 bg-slate-200 rounded-lg text-sm">닫기</button>
                         </div>
                     )}
 
                     <div className="p-3 space-y-3 pb-20">
-                        {/* 지정 경로 안내 */}
+                        {/* 저장된 경로 표시 */}
                         {savedPath && (
                             <div className="bg-blue-50 border border-blue-200 rounded-xl p-3">
-                                <p className="text-xs text-blue-700">📁 <strong>파일 위치:</strong></p>
-                                <p className="text-xs text-blue-600 mt-1 break-all">{savedPath}</p>
+                                <p className="text-xs text-blue-700">📁 <strong>파일 위치:</strong> {savedPath}</p>
                             </div>
                         )}
 
                         {/* 업로드 */}
                         <div className="bg-white rounded-xl p-3 shadow-sm">
                             <div className="flex gap-2 flex-wrap">
-                                <label className="flex-1 min-w-32 px-4 py-3 bg-blue-600 text-white rounded-xl text-center cursor-pointer text-sm font-medium">
+                                <label className="flex-1 min-w-28 px-4 py-3 bg-blue-600 text-white rounded-xl text-center cursor-pointer text-sm font-medium">
                                     📂 Excel 업로드
                                     <input type="file" accept=".xlsx,.xls" onChange={handleFileUpload} className="hidden" />
                                 </label>
-                                <button onClick={loadSample} className="flex-1 min-w-32 px-4 py-3 bg-amber-500 text-white rounded-xl text-sm font-medium">📊 샘플 데이터</button>
+                                <button onClick={loadSample} className="flex-1 min-w-28 px-4 py-3 bg-amber-500 text-white rounded-xl text-sm font-medium">📊 샘플</button>
                             </div>
+                            {isLoading && <p className="mt-2 text-xs text-center text-blue-600">⏳ 로딩 중...</p>}
                             {uploadStatus && <p className={`mt-2 text-xs text-center ${uploadStatus.type === 'success' ? 'text-green-600' : 'text-red-600'}`}>{uploadStatus.type === 'success' ? '✅' : '❌'} {uploadStatus.message}</p>}
-                            
-                            {/* 최근 파일 빠른 표시 */}
-                            {recentFiles.length > 0 && !uploadStatus && (
-                                <div className="mt-3 pt-3 border-t">
-                                    <p className="text-xs text-slate-500 mb-2">📄 최근 파일</p>
-                                    <div className="text-xs text-slate-600 bg-slate-50 p-2 rounded">
-                                        {recentFiles[0].name} <span className="text-slate-400">({recentFiles[0].count}건)</span>
-                                    </div>
-                                </div>
-                            )}
                         </div>
 
-                        {/* 필터 */}
-                        <div className="bg-white rounded-xl p-3 shadow-sm">
-                            <div className="grid grid-cols-2 gap-2">
-                                <select value={filters.지역} onChange={e => handleFilterChange('지역', e.target.value)} className="px-3 py-2 border rounded-lg text-sm">
-                                    <option value="">지역 전체</option>
-                                    {지역Options.map(o => <option key={o} value={o}>{o}</option>)}
-                                </select>
-                                <select value={filters.고객사} onChange={e => handleFilterChange('고객사', e.target.value)} className="px-3 py-2 border rounded-lg text-sm">
-                                    <option value="">고객사 전체</option>
-                                    {고객사Options.map(o => <option key={o} value={o}>{o}</option>)}
-                                </select>
+                        {/* 필터 토글 */}
+                        <button onClick={() => setShowFilters(!showFilters)} className="w-full bg-white rounded-xl p-3 shadow-sm flex justify-between items-center">
+                            <span className="text-sm font-medium">🔍 계단식 필터 {activeFilterCount > 0 && <span className="bg-blue-100 text-blue-700 text-xs px-2 py-0.5 rounded-full ml-2">{activeFilterCount}개</span>}</span>
+                            <span>{showFilters ? '▲' : '▼'}</span>
+                        </button>
+
+                        {/* 필터 패널 */}
+                        {showFilters && (
+                            <div className="bg-white rounded-xl p-3 shadow-sm space-y-3">
+                                {/* 기간 필터 */}
+                                <div>
+                                    <label className="block text-xs font-medium text-slate-600 mb-1">📅 조회 기간</label>
+                                    <div className="grid grid-cols-2 gap-2">
+                                        <select value={filters.시작월} onChange={e => handleFilterChange('시작월', e.target.value)} className="px-3 py-2 border rounded-lg text-sm">
+                                            <option value="">시작월</option>
+                                            {월Options.map(o => <option key={o} value={o}>{o}</option>)}
+                                        </select>
+                                        <select value={filters.종료월} onChange={e => handleFilterChange('종료월', e.target.value)} className="px-3 py-2 border rounded-lg text-sm">
+                                            <option value="">종료월</option>
+                                            {월Options.map(o => <option key={o} value={o}>{o}</option>)}
+                                        </select>
+                                    </div>
+                                </div>
+
+                                {/* 지역 → 고객사 */}
+                                <div className="grid grid-cols-2 gap-2">
+                                    <div>
+                                        <label className="block text-xs font-medium text-slate-600 mb-1">① 지역 ({지역Options.length})</label>
+                                        <select value={filters.지역} onChange={e => handleFilterChange('지역', e.target.value)} className="w-full px-3 py-2 border rounded-lg text-sm">
+                                            <option value="">전체</option>
+                                            {지역Options.map(o => <option key={o} value={o}>{o}</option>)}
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-medium text-slate-600 mb-1">② 고객사 ({고객사Options.length})</label>
+                                        <select value={filters.고객사} onChange={e => handleFilterChange('고객사', e.target.value)} className="w-full px-3 py-2 border rounded-lg text-sm">
+                                            <option value="">전체</option>
+                                            {고객사Options.map(o => <option key={o} value={o}>{o}</option>)}
+                                        </select>
+                                    </div>
+                                </div>
+
+                                {/* 차종 → 품번 */}
+                                <div className="grid grid-cols-2 gap-2">
+                                    <div>
+                                        <label className="block text-xs font-medium text-slate-600 mb-1">③ 차종 ({차종Options.length})</label>
+                                        <select value={filters.차종} onChange={e => handleFilterChange('차종', e.target.value)} className="w-full px-3 py-2 border rounded-lg text-sm">
+                                            <option value="">전체</option>
+                                            {차종Options.map(o => <option key={o} value={o}>{o}</option>)}
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-medium text-slate-600 mb-1">④ 품번 ({품번Options.length})</label>
+                                        <select value={filters.품번} onChange={e => handleFilterChange('품번', e.target.value)} className="w-full px-3 py-2 border rounded-lg text-sm">
+                                            <option value="">전체</option>
+                                            {품번Options.map(o => <option key={o} value={o}>{o}</option>)}
+                                        </select>
+                                    </div>
+                                </div>
+
+                                {/* 품명 */}
+                                <div>
+                                    <label className="block text-xs font-medium text-slate-600 mb-1">⑤ 품명 ({품명Options.length})</label>
+                                    <select value={filters.품명} onChange={e => handleFilterChange('품명', e.target.value)} className="w-full px-3 py-2 border rounded-lg text-sm">
+                                        <option value="">전체</option>
+                                        {품명Options.map(o => <option key={o} value={o}>{o.length > 30 ? o.slice(0, 30) + '...' : o}</option>)}
+                                    </select>
+                                </div>
+
+                                {/* 필터 초기화 */}
+                                <button onClick={resetFilters} className="w-full py-2 bg-slate-100 text-slate-600 rounded-lg text-xs">🔄 필터 초기화</button>
                             </div>
-                        </div>
+                        )}
 
                         {/* KPI */}
                         <div className="grid grid-cols-2 gap-2">
                             <div className="bg-white rounded-xl p-3 shadow-sm text-center">
-                                <p className="text-xs text-slate-500">계획</p>
+                                <p className="text-xs text-slate-500">📦 계획</p>
                                 <p className="text-lg font-bold text-blue-600">{kpis.plan.toLocaleString()}</p>
                             </div>
                             <div className="bg-white rounded-xl p-3 shadow-sm text-center">
-                                <p className="text-xs text-slate-500">실제</p>
+                                <p className="text-xs text-slate-500">📦 실제</p>
                                 <p className="text-lg font-bold text-green-600">{kpis.actual.toLocaleString()}</p>
                             </div>
                             <div className="bg-white rounded-xl p-3 shadow-sm text-center">
-                                <p className="text-xs text-slate-500">출고율</p>
-                                <p className={`text-lg font-bold ${kpis.avgRate >= 100 ? 'text-emerald-600' : 'text-amber-600'}`}>{kpis.avgRate}%</p>
+                                <p className="text-xs text-slate-500">📈 변동율</p>
+                                <p className={`text-lg font-bold ${kpis.avgVar >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>{kpis.avgVar > 0 ? '+' : ''}{kpis.avgVar}%</p>
                             </div>
                             <div className="bg-white rounded-xl p-3 shadow-sm text-center">
-                                <p className="text-xs text-slate-500">이슈</p>
-                                <p className={`text-lg font-bold ${kpis.issueCount > 0 ? 'text-red-600' : 'text-green-600'}`}>{kpis.issueCount}건</p>
+                                <p className="text-xs text-slate-500">📊 출고율</p>
+                                <p className={`text-lg font-bold ${kpis.avgRate >= 100 ? 'text-emerald-600' : 'text-amber-600'}`}>{kpis.avgRate}%</p>
                             </div>
                         </div>
 
                         {/* 탭 */}
                         <div className="flex gap-2">
                             <button onClick={() => setActiveTab('analysis')} className={`flex-1 py-2 rounded-lg text-sm font-medium ${activeTab === 'analysis' ? 'bg-blue-600 text-white' : 'bg-white'}`}>📊 분석</button>
-                            <button onClick={() => setActiveTab('recommend')} className={`flex-1 py-2 rounded-lg text-sm font-medium ${activeTab === 'recommend' ? 'bg-amber-500 text-white' : 'bg-white'}`}>💡 제안</button>
+                            <button onClick={() => setActiveTab('recommend')} className={`flex-1 py-2 rounded-lg text-sm font-medium ${activeTab === 'recommend' ? 'bg-amber-500 text-white' : 'bg-white'}`}>💡 제안 ({recommendations.length})</button>
                         </div>
 
-                        {/* 데이터 카드 */}
+                        {/* 데이터 */}
                         {activeTab === 'analysis' ? (
                             <div className="space-y-2">
                                 {filteredData.length === 0 ? (
-                                    <div className="bg-white rounded-xl p-8 text-center text-slate-400">데이터를 로드하세요</div>
-                                ) : filteredData.slice(0, 50).map((r, i) => (
+                                    <div className="bg-white rounded-xl p-8 text-center text-slate-400">📂 데이터를 로드하세요</div>
+                                ) : filteredData.slice(0, 100).map((r, i) => (
                                     <div key={i} className="bg-white rounded-xl p-3 shadow-sm">
                                         <div className="flex justify-between items-start mb-2">
-                                            <div>
+                                            <div className="flex items-center gap-1 flex-wrap">
                                                 <span className={`px-2 py-0.5 rounded text-xs ${r.지역 === 'US' ? 'bg-blue-100 text-blue-700' : r.지역 === 'MX' ? 'bg-green-100 text-green-700' : r.지역 === 'CA' ? 'bg-red-100 text-red-700' : 'bg-purple-100 text-purple-700'}`}>{r.지역}</span>
-                                                <span className="ml-2 text-sm font-medium">{r.고객사}</span>
+                                                <span className="text-sm font-medium">{r.고객사}</span>
+                                                {r.차종 && <span className="px-1.5 py-0.5 bg-slate-100 text-slate-600 rounded text-xs">{r.차종}</span>}
                                             </div>
                                             <span className={`px-2 py-0.5 rounded text-xs font-medium ${r.출고율 >= 100 ? 'bg-emerald-100 text-emerald-700' : r.출고율 >= 80 ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700'}`}>{r.출고율}%</span>
                                         </div>
-                                        <p className="text-xs text-slate-500 mb-1">{r.품번} | {r.분석월}</p>
+                                        <p className="text-xs text-slate-500 mb-1">{r.품번} | {r.품명}</p>
+                                        <p className="text-xs text-slate-400 mb-1">{r.분석월}</p>
                                         <div className="flex justify-between text-sm">
                                             <span>계획: <strong>{r.계획발주수량.toLocaleString()}</strong></span>
                                             <span>실제: <strong>{r.실제발주수량.toLocaleString()}</strong></span>
+                                            <span className={r.변동율 >= 0 ? 'text-emerald-600' : 'text-red-600'}>{r.변동율 > 0 ? '+' : ''}{r.변동율}%</span>
                                         </div>
                                     </div>
                                 ))}
+                                {filteredData.length > 100 && <p className="text-center text-xs text-slate-400">... 외 {filteredData.length - 100}건</p>}
                             </div>
                         ) : (
                             <div className="space-y-2">
                                 {recommendations.length === 0 ? (
-                                    <div className="bg-white rounded-xl p-8 text-center text-slate-400">데이터를 로드하세요</div>
-                                ) : recommendations.slice(0, 30).map((r, i) => (
+                                    <div className="bg-white rounded-xl p-8 text-center text-slate-400">📂 데이터를 로드하세요</div>
+                                ) : recommendations.slice(0, 50).map((r, i) => (
                                     <div key={i} className="bg-white rounded-xl p-3 shadow-sm">
                                         <div className="flex justify-between items-start mb-2">
-                                            <div>
+                                            <div className="flex items-center gap-1 flex-wrap">
                                                 <span className={`px-2 py-0.5 rounded text-xs ${r.지역 === 'US' ? 'bg-blue-100 text-blue-700' : r.지역 === 'MX' ? 'bg-green-100 text-green-700' : r.지역 === 'CA' ? 'bg-red-100 text-red-700' : 'bg-purple-100 text-purple-700'}`}>{r.지역}</span>
-                                                <span className="ml-2 text-sm font-medium">{r.고객사}</span>
+                                                <span className="text-sm font-medium">{r.고객사}</span>
+                                                {r.차종 && <span className="px-1.5 py-0.5 bg-slate-100 text-slate-600 rounded text-xs">{r.차종}</span>}
                                             </div>
                                             <span className={`px-2 py-0.5 rounded text-xs font-medium ${getRiskColor(r.위험등급)}`}>{r.위험등급}</span>
                                         </div>
-                                        <p className="text-xs text-slate-500 mb-2">{r.품번}</p>
+                                        <p className="text-xs text-slate-500 mb-2">{r.품번} | {r.품명}</p>
                                         <div className="flex justify-between items-center">
                                             <div className="text-sm">
-                                                <span className="text-slate-500">출고율:</span> <strong className={r.평균출고율 >= 100 ? 'text-emerald-600' : 'text-amber-600'}>{r.평균출고율}%</strong>
+                                                출고율: <strong className={r.평균출고율 >= 100 ? 'text-emerald-600' : 'text-amber-600'}>{r.평균출고율}%</strong>
                                             </div>
                                             <div className="text-right">
                                                 <p className="text-xs text-slate-500">권장수량</p>
